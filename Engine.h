@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <string>
 
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 class Engine {
@@ -22,10 +23,18 @@ private:
 
     GLFWwindow* m_window;
 
+    // Vulkan Members
+    VkInstance m_instance;
+    VkPhysicalDevice m_physicalDevice;
+
     // Functions
     void mainLoop();
 
+    // Vulkan
     int initializeVulkan();
+    void cleanUpVulkan();
+
+    void createInstance();
 };
 
 #endif //VK_SAMPLE_ENGINE_H
