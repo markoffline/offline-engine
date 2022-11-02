@@ -3,4 +3,6 @@ project(vk_sample)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(vk_sample main.cpp)
+add_executable(vk_sample main.cpp Engine.cpp Engine.h)
+
+target_link_libraries(vk_sample glfw)
