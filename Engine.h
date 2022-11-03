@@ -7,6 +7,7 @@
 
 #include <cinttypes>
 #include <string>
+#include <vector>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -35,6 +36,8 @@ private:
     void cleanUpVulkan();
 
     void createInstance();
+
+    void selectPhysicalDevice();
 };
 
 #endif //VK_SAMPLE_ENGINE_H

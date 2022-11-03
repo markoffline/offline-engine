@@ -40,6 +40,10 @@ void Engine::mainLoop() {
 
 int Engine::initializeVulkan() {
     createInstance();
+
+    selectPhysicalDevice();
+
+
     return 0;
 }
 
@@ -76,5 +80,25 @@ void Engine::createInstance() {
         throw std::runtime_error("failed to create Vulkan instance");
 
     std::cout << "Created Vulkan Instance!" << std::endl;
+}
+
+void Engine::selectPhysicalDevice() {
+    // Get count of all physical devices so we can make a vector
+    uint32_t devCount = 0;
+    vkEnumeratePhysicalDevices(m_instance, &devCount, nullptr);
+    // Fill in vector of physical devices
+    std::vector<VkPhysicalDevice> devices(devCount);
+    vkEnumeratePhysicalDevices(m_instance, &devCount, devices.data());
+
+    int i = 0;
+    for(VkPhysicalDevice device : devices) {
+        // TODO: Use the best GPU available
+        m_physicalDevice = device;
+        break;
+    }
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
+    std::cout << "Selected physical device [" << i << "] - " << properties.deviceName << std::endl;
+
 }
 
