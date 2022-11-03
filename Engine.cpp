@@ -42,7 +42,7 @@ int Engine::initializeVulkan() {
     createInstance();
 
     selectPhysicalDevice();
-
+    getQueueFamilyIndices();
 
     return 0;
 }
@@ -100,5 +100,23 @@ void Engine::selectPhysicalDevice() {
     vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
     std::cout << "Selected physical device [" << i << "] - " << properties.deviceName << std::endl;
 
+}
+
+void Engine::getQueueFamilyIndices() {
+    // Get count of queue families
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
+    // Fill vector with queue family properties
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+    // Get queue indices
+    int i = 0;
+    for (VkQueueFamilyProperties queueFamily : queueFamilies) {
+        // Get graphics queue index
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            m_graphicsFamilyIndex = i;
+        i++;
+    }
 }
 

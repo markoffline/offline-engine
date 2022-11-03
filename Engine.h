@@ -28,6 +28,8 @@ private:
     VkInstance m_instance;
     VkPhysicalDevice m_physicalDevice;
 
+    uint32_t m_graphicsFamilyIndex = -1;
+
     // Functions
     void mainLoop();
 
@@ -38,6 +40,7 @@ private:
     void createInstance();
 
     void selectPhysicalDevice();
+    void getQueueFamilyIndices();
 };
 
 #endif //VK_SAMPLE_ENGINE_H
