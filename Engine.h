@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <string>
 #include <vector>
+#include <array>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -26,9 +27,12 @@ private:
 
     // Vulkan Members
     VkInstance m_instance;
+    VkSurfaceKHR m_surface;
     VkPhysicalDevice m_physicalDevice;
+    VkDevice m_device;
 
     uint32_t m_graphicsFamilyIndex = -1;
+    uint32_t m_presentFamilyIndex = -1;
 
     // Functions
     void mainLoop();
@@ -38,6 +42,7 @@ private:
     void cleanUpVulkan();
 
     void createInstance();
+    void createDevice();
 
     void selectPhysicalDevice();
     void getQueueFamilyIndices();

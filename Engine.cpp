@@ -4,18 +4,24 @@
 #include <stdexcept>
 
 int Engine::run(uint16_t width, uint16_t height, const std::string& title) {
+    // Start with creating a vulkan instance
+    // On slower devices the window will show up way before any rendering happens
+    createInstance();
+
     // Prepare GLFW to be used by this application.
     glfwInit();
 
     // Tell GLFW to create a window without OpenGL
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    // Create the window
+    // Create the window and surface
     m_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-    initialized = true;
+    glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface);
+
 
     initializeVulkan();
 
+    initialized = true;
     // Run the application as normal
     mainLoop();
 
@@ -39,15 +45,19 @@ void Engine::mainLoop() {
 }
 
 int Engine::initializeVulkan() {
-    createInstance();
-
     selectPhysicalDevice();
     getQueueFamilyIndices();
+
+    createDevice();
 
     return 0;
 }
 
 void Engine::cleanUpVulkan() {
+    vkDestroyDevice(m_device, nullptr);
+
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+
     vkDestroyInstance(m_instance, nullptr);
 }
 
@@ -80,6 +90,35 @@ void Engine::createInstance() {
         throw std::runtime_error("failed to create Vulkan instance");
 
     std::cout << "Created Vulkan Instance!" << std::endl;
+}
+
+void Engine::createDevice() {
+    float queuePriority = 1.0f;
+    VkDeviceQueueCreateInfo graphicsQueueInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = m_graphicsFamilyIndex,
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority
+    };
+    VkDeviceQueueCreateInfo presentQueueInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = m_presentFamilyIndex,
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority,
+    };
+    std::array<VkDeviceQueueCreateInfo, 2> queueInfos = {graphicsQueueInfo, presentQueueInfo};
+
+    VkPhysicalDeviceFeatures features = {};
+
+    VkDeviceCreateInfo info = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .queueCreateInfoCount = queueInfos.size(),
+            .pQueueCreateInfos = queueInfos.data(),
+            .pEnabledFeatures = &features
+    };
+
+    if (vkCreateDevice(m_physicalDevice, &info, nullptr, &m_device) != VK_SUCCESS)
+        throw std::runtime_error("failed to create device");
 }
 
 void Engine::selectPhysicalDevice() {
@@ -116,7 +155,15 @@ void Engine::getQueueFamilyIndices() {
         // Get graphics queue index
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             m_graphicsFamilyIndex = i;
+
+        // Check if supports presenting
+        VkBool32 supportsPresenting = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, i, m_surface, &supportsPresenting);
+        if (supportsPresenting)
+            m_presentFamilyIndex = i;
+
         i++;
     }
 }
+
 
