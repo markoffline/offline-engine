@@ -31,6 +31,14 @@ private:
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
 
+    VkSwapchainKHR m_swapchain;
+    VkSurfaceFormatKHR m_swapchainFormat;
+    VkExtent2D m_swapchainExtent;
+    VkPresentModeKHR m_presentMode;
+
+    std::vector<VkImage> m_swapchainImages;
+    std::vector<VkImageView> m_swapchainImageViews;
+
     uint32_t m_graphicsFamilyIndex = -1;
     uint32_t m_presentFamilyIndex = -1;
 
@@ -43,9 +51,15 @@ private:
 
     void createInstance();
     void createDevice();
+    void createSwapchain();
 
     void selectPhysicalDevice();
     void getQueueFamilyIndices();
+    void selectSwapchainFormat();
+    void getSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    void getSwapchainPresentMode();
+
+    void getSwapchainImages();
 };
 
 #endif //VK_SAMPLE_ENGINE_H

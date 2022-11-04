@@ -2,14 +2,18 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
+#include <limits>
+
+#define TARGET_IMAGE_COUNT 2
 
 int Engine::run(uint16_t width, uint16_t height, const std::string& title) {
+    // Prepare GLFW to be used by this application.
+    glfwInit(); // Why does this have to be fuckin first...
+
     // Start with creating a vulkan instance
     // On slower devices the window will show up way before any rendering happens
     createInstance();
-
-    // Prepare GLFW to be used by this application.
-    glfwInit();
 
     // Tell GLFW to create a window without OpenGL
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -17,7 +21,6 @@ int Engine::run(uint16_t width, uint16_t height, const std::string& title) {
     // Create the window and surface
     m_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface);
-
 
     initializeVulkan();
 
@@ -50,10 +53,15 @@ int Engine::initializeVulkan() {
 
     createDevice();
 
+    createSwapchain();
+    
+
     return 0;
 }
 
 void Engine::cleanUpVulkan() {
+    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+
     vkDestroyDevice(m_device, nullptr);
 
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -110,15 +118,71 @@ void Engine::createDevice() {
 
     VkPhysicalDeviceFeatures features = {};
 
+    std::array<char*, 1> extensions = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
     VkDeviceCreateInfo info = {
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .queueCreateInfoCount = queueInfos.size(),
             .pQueueCreateInfos = queueInfos.data(),
+            .enabledExtensionCount = extensions.size(),
+            .ppEnabledExtensionNames = extensions.data(),
             .pEnabledFeatures = &features
     };
 
     if (vkCreateDevice(m_physicalDevice, &info, nullptr, &m_device) != VK_SUCCESS)
         throw std::runtime_error("failed to create device");
+}
+
+void Engine::createSwapchain() {
+    VkSurfaceCapabilitiesKHR capabilities = {};
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &capabilities);
+
+    // Find and use an supported image count
+    int imageCount = TARGET_IMAGE_COUNT;
+    if (imageCount < capabilities.minImageCount)
+        imageCount = capabilities.minImageCount;
+    if (capabilities.maxImageCount != 0)
+        if (imageCount > capabilities.maxImageCount)
+            imageCount = capabilities.maxImageCount;
+
+    // Find suitable format
+    selectSwapchainFormat();
+
+    // Create swapchain extent
+    getSwapchainExtent(capabilities);
+
+    // Get the optimal present mode
+    getSwapchainPresentMode();
+
+    VkSwapchainCreateInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    info.pNext = nullptr;
+    info.flags = 0;
+    info.surface = m_surface;
+    info.minImageCount = imageCount;
+    info.imageFormat = m_swapchainFormat.format;
+    info.imageColorSpace =  m_swapchainFormat.colorSpace;
+    info.imageExtent = m_swapchainExtent;
+    info.imageArrayLayers = 1;
+    info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (m_graphicsFamilyIndex != m_presentFamilyIndex) {
+        std::array<uint32_t, 2> families = {m_graphicsFamilyIndex, m_presentFamilyIndex};
+        info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        info.queueFamilyIndexCount = families.size();
+        info.pQueueFamilyIndices = families.data();
+    } else {
+        info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
+    info.preTransform = capabilities.currentTransform;
+    info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    info.presentMode = m_presentMode;
+    info.clipped = VK_TRUE;
+
+    if (vkCreateSwapchainKHR(m_device, &info, nullptr, &m_swapchain) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create a swapchain!");
+    }
 }
 
 void Engine::selectPhysicalDevice() {
@@ -166,4 +230,72 @@ void Engine::getQueueFamilyIndices() {
     }
 }
 
+void Engine::selectSwapchainFormat() {
+    // Get count of formats to create a vector
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &formatCount, nullptr);
+    // Fill in vector with formats
+    std::vector<VkSurfaceFormatKHR> formats(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &formatCount, formats.data());
 
+    for (const auto& format : formats) {
+        if (format.format == VK_FORMAT_B8G8R8A8_UNORM
+                && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            m_swapchainFormat = format;
+            return;
+        }
+    } 
+    if (formats.size() > 0)
+        m_swapchainFormat = formats[0];
+    else
+        m_swapchainFormat = {
+            VK_FORMAT_B8G8R8A8_UNORM,
+            VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+        };
+}
+
+void Engine::getSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+    // If capabilities has the width, use the capabilities
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        m_swapchainExtent = capabilities.currentExtent;
+        return;
+    } else {
+        // Get width and height of the window's framebuffer
+        int width, height;
+        glfwGetFramebufferSize(m_window, &width, &height);
+
+        // Clamp those numbers to the limits of the surface
+        uint32_t _width = std::clamp(static_cast<uint32_t>(width),
+                            capabilities.minImageExtent.width,
+                            capabilities.maxImageExtent.width);
+        uint32_t _height = std::clamp(static_cast<uint32_t>(height),
+                            capabilities.minImageExtent.height,
+                            capabilities.maxImageExtent.height);
+
+        // Create the extent with those width and height numbers
+        m_swapchainExtent = {
+            _width,
+            _height
+        };
+    }
+}
+
+void Engine::getSwapchainPresentMode() {
+    // Get count so we can make an array
+    uint32_t presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, nullptr);
+
+    // Fill in that array
+    std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, presentModes.data());
+
+    // Cycle through all the available present modes, and choose mailbox if available.
+    for (auto& presentMode : presentModes) {
+        if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            m_presentMode = presentMode;
+            return;
+        }
+    }
+    // Use FIFO if mailbox is not available
+    m_presentMode = VK_PRESENT_MODE_FIFO_KHR;
+}
