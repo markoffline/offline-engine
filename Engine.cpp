@@ -60,6 +60,12 @@ int Engine::initializeVulkan() {
 }
 
 void Engine::cleanUpVulkan() {
+    vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+
+    for (const VkImageView& view : m_swapchainImageViews) {
+        vkDestroyImageView(m_device, view, nullptr);
+    }
+
     vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 
     vkDestroyDevice(m_device, nullptr);
@@ -185,6 +191,49 @@ void Engine::createSwapchain() {
     }
 }
 
+void Engine::createRenderPass() {
+    VkAttachmentDescription colorAttachment = {};
+    colorAttachment.flags = 0;
+    colorAttachment.format = m_swapchainFormat.format;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentRef = {};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+    subpass.flags = 0;
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.inputAttachmentCount = 0;
+    subpass.pInputAttachments = nullptr;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pResolveAttachments = nullptr;
+    subpass.pDepthStencilAttachment = nullptr;
+    subpass.preserveAttachmentCount = 0;
+    subpass.pPreserveAttachments = nullptr;
+
+    VkRenderPassCreateInfo info {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.pNext = nullptr;
+    info.flags = 0;
+    info.attachmentCount = 1;
+    info.pAttachments = &colorAttachment;
+    info.subpassCount = 1;
+    info.pSubpasses = &subpass;
+    info.dependencyCount = 0;
+    info.pDependencies = nullptr;
+
+    if (vkCreateRenderPass(m_device, &info, nullptr, &m_renderPass))
+        throw std::runtime_error("failed to create a render pass");
+}
+
 void Engine::selectPhysicalDevice() {
     // Get count of all physical devices so we can make a vector
     uint32_t devCount = 0;
@@ -298,4 +347,41 @@ void Engine::getSwapchainPresentMode() {
     }
     // Use FIFO if mailbox is not available
     m_presentMode = VK_PRESENT_MODE_FIFO_KHR;
+}
+
+void Engine::getSwapchainImages() {
+    // Get image count so we can make a array of images.
+    uint32_t imageCount;
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
+
+    // Fill in that vector with the swapchain images.
+    m_swapchainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, m_swapchainImages.data());
+
+    // Prepare for image views
+    m_swapchainImageViews.resize(imageCount);
+
+    for (int i = 0; i < imageCount; i++) {
+        VkImageViewCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.image = m_swapchainImages[i];
+        info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        info.format = m_swapchainFormat.format;
+        info.components.r = VK_COMPONENT_SWIZZLE_R;
+        info.components.g = VK_COMPONENT_SWIZZLE_G;
+        info.components.b = VK_COMPONENT_SWIZZLE_B;
+        info.components.a = VK_COMPONENT_SWIZZLE_A;
+        info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        info.subresourceRange.baseMipLevel = 0;
+        info.subresourceRange.levelCount = 1;
+        info.subresourceRange.baseArrayLayer = 0;
+        info.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(m_device, &info, nullptr, &m_swapchainImageViews[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create a image view");
+        }
+
+    }
 }
