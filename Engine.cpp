@@ -54,12 +54,20 @@ int Engine::initializeVulkan() {
     createDevice();
 
     createSwapchain();
+
+    getSwapchainImages();
+    createRenderPass();
+    createFramebuffers();
     
 
     return 0;
 }
 
 void Engine::cleanUpVulkan() {
+    for (const VkFramebuffer& framebuffer : m_framebuffers) {
+        vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+    }
+
     vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 
     for (const VkImageView& view : m_swapchainImageViews) {
@@ -192,6 +200,7 @@ void Engine::createSwapchain() {
 }
 
 void Engine::createRenderPass() {
+    // Information about the attachments for the render pass
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.flags = 0;
     colorAttachment.format = m_swapchainFormat.format;
@@ -219,6 +228,7 @@ void Engine::createRenderPass() {
     subpass.preserveAttachmentCount = 0;
     subpass.pPreserveAttachments = nullptr;
 
+    // Information Vulkan needs to create a render pass
     VkRenderPassCreateInfo info {};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     info.pNext = nullptr;
@@ -230,8 +240,30 @@ void Engine::createRenderPass() {
     info.dependencyCount = 0;
     info.pDependencies = nullptr;
 
+
+    // Create the render pass
     if (vkCreateRenderPass(m_device, &info, nullptr, &m_renderPass))
         throw std::runtime_error("failed to create a render pass");
+}
+
+void Engine::createFramebuffers() {
+    VkFramebufferCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    info.pNext = nullptr;
+    info.flags = 0;
+    info.renderPass = m_renderPass;
+    info.attachmentCount = 1;
+    info.width = m_swapchainExtent.width;
+    info.height = m_swapchainExtent.height;
+    info.layers = 1;
+
+    // Prepare vector for values that will be copied in.
+    m_framebuffers.resize(m_swapchainImages.size());
+    for (int i = 0; i < m_swapchainImages.size(); i++) {
+        info.pAttachments = &m_swapchainImageViews[i];
+        if(vkCreateFramebuffer(m_device, &info, nullptr, &m_framebuffers[i]) != VK_SUCCESS)
+            throw std::runtime_error("failed to create a framebuffer");
+    }
 }
 
 void Engine::selectPhysicalDevice() {

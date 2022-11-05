@@ -40,6 +40,8 @@ private:
     std::vector<VkImage> m_swapchainImages;
     std::vector<VkImageView> m_swapchainImageViews;
 
+    std::vector<VkFramebuffer> m_framebuffers;
+
     uint32_t m_graphicsFamilyIndex = -1;
     uint32_t m_presentFamilyIndex = -1;
 
@@ -54,6 +56,7 @@ private:
     void createDevice();
     void createSwapchain();
     void createRenderPass();
+    void createFramebuffers();
 
     void selectPhysicalDevice();
     void getQueueFamilyIndices();
