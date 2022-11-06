@@ -9,7 +9,7 @@
 
 int Engine::run(uint16_t width, uint16_t height, const std::string& title) {
     // Prepare GLFW to be used by this application.
-    glfwInit(); // Why does this have to be fuckin first...
+    glfwInit();
 
     // Start with creating a vulkan instance
     // On slower devices the window will show up way before any rendering happens
