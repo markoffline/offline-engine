@@ -31,6 +31,7 @@ private:
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkRenderPass m_renderPass;
+    VkCommandPool m_commandPool;
 
     VkSwapchainKHR m_swapchain;
     VkSurfaceFormatKHR m_swapchainFormat;
@@ -57,6 +58,7 @@ private:
     void createSwapchain();
     void createRenderPass();
     void createFramebuffers();
+    void createCommandPool();
 
     void selectPhysicalDevice();
     void getQueueFamilyIndices();

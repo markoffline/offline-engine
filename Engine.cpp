@@ -58,12 +58,16 @@ int Engine::initializeVulkan() {
     getSwapchainImages();
     createRenderPass();
     createFramebuffers();
+
+    createCommandPool();
     
 
     return 0;
 }
 
 void Engine::cleanUpVulkan() {
+    vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+
     for (const VkFramebuffer& framebuffer : m_framebuffers) {
         vkDestroyFramebuffer(m_device, framebuffer, nullptr);
     }
@@ -263,6 +267,18 @@ void Engine::createFramebuffers() {
         info.pAttachments = &m_swapchainImageViews[i];
         if(vkCreateFramebuffer(m_device, &info, nullptr, &m_framebuffers[i]) != VK_SUCCESS)
             throw std::runtime_error("failed to create a framebuffer");
+    }
+}
+
+void Engine::createCommandPool() {
+    VkCommandPoolCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    info.pNext = nullptr;
+    info.flags = VK_COMMAND_POOL_RESET_FLAG_BITS_MAX_ENUM;
+    info.queueFamilyIndex = m_graphicsFamilyIndex;
+    
+    if (vkCreateCommandPool(m_device, &info, nullptr, &m_commandPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create a command pool");
     }
 }
 
