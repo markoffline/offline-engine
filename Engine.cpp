@@ -60,6 +60,7 @@ int Engine::initializeVulkan() {
     createFramebuffers();
 
     createCommandPool();
+    allocCommandBuffers();
     
 
     return 0;
@@ -431,5 +432,19 @@ void Engine::getSwapchainImages() {
             throw std::runtime_error("failed to create a image view");
         }
 
+    }
+}
+
+void Engine::allocCommandBuffers() {
+    VkCommandBufferAllocateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    info.pNext = nullptr;
+    info.commandPool = m_commandPool;
+    info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    info.commandBufferCount = m_swapchainImages.size();
+
+    m_commandBuffers.resize(m_swapchainImages.size());
+    if (vkAllocateCommandBuffers(m_device, &info, m_commandBuffers.data())) {
+        throw std::runtime_error("failed to create command buffers");
     }
 }

@@ -43,6 +43,8 @@ private:
 
     std::vector<VkFramebuffer> m_framebuffers;
 
+    std::vector<VkCommandBuffer> m_commandBuffers;
+
     uint32_t m_graphicsFamilyIndex = -1;
     uint32_t m_presentFamilyIndex = -1;
 
@@ -67,6 +69,8 @@ private:
     void getSwapchainPresentMode();
 
     void getSwapchainImages();
+
+    void allocCommandBuffers();
 };
 
 #endif //VK_SAMPLE_ENGINE_H
